@@ -40,7 +40,7 @@ func main() {
 
 	r := gin.Default()
 	r.GET("/ping", func(c *gin.Context) {
-		err, remainingLimit := rateLimitCall(c.ClientIP())
+		remainingLimit, err := rateLimitCall(c.ClientIP())
 		if err != nil {
 			c.JSON(
 				http.StatusTooManyRequests,
@@ -59,7 +59,7 @@ func main() {
 	r.Run(":" + os.Getenv("PORT"))
 }
 
-func rateLimitCall(ClientIP string) (error, int) {
+func rateLimitCall(ClientIP string) (int, error) {
 	ctx := context.Background()
 
 	rateLimitString := os.Getenv("RATE_LIMIT")
@@ -71,9 +71,9 @@ func rateLimitCall(ClientIP string) (error, int) {
 	}
 
 	if res.Remaining == 0 {
-		return errors.New("You have hit the Rate Limit for the API. Try again later"), 0
+		return 0, errors.New("You have hit the Rate Limit for the API. Try again later")
 	}
 
 	fmt.Println("remaining request for", ClientIP, "is", res.Remaining)
-	return nil, res.Remaining
+	return res.Remaining, nil
 }
