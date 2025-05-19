@@ -71,7 +71,7 @@ func rateLimitCall(ClientIP string) (int, error) {
 	}
 
 	if res.Remaining == 0 {
-		return 0, errors.New("You have hit the Rate Limit for the API. Try again later")
+		return 0, errors.New("you have hit the rate limit for the api. try again later")
 	}
 
 	fmt.Println("remaining request for", ClientIP, "is", res.Remaining)
