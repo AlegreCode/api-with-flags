@@ -7,8 +7,8 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strconv"
 
+	flagsmith "github.com/Flagsmith/flagsmith-go-client/v3"
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis_rate/v10"
 	"github.com/joho/godotenv"
@@ -16,8 +16,9 @@ import (
 )
 
 var (
-	redisClient *redis.Client
-	limiter     *redis_rate.Limiter
+	redisClient     *redis.Client
+	limiter         *redis_rate.Limiter
+	flagsmithClient *flagsmith.Client
 )
 
 func initClients() {
@@ -25,6 +26,7 @@ func initClients() {
 		Addr: os.Getenv("REDIS_URL"),
 	})
 	limiter = redis_rate.NewLimiter(redisClient)
+	flagsmithClient = flagsmith.NewClient(os.Getenv("FLAGSMITH_ENVIRONMENT_KEY"))
 }
 
 func main() {
@@ -52,9 +54,15 @@ func main() {
 		}
 	})
 	r.GET("/beta", func(c *gin.Context) {
-		c.JSON(
-			http.StatusOK,
-			gin.H{"message": "This is beta endpoint"})
+		flags := getFeatureFlags()
+		isEnabled, _ := flags.IsFeatureEnabled("beta")
+		if isEnabled {
+			c.JSON(
+				http.StatusOK,
+				gin.H{"message": "This is beta endpoint"})
+		} else {
+			c.String(http.StatusNotFound, "404 page not found")
+		}
 	})
 	r.Run(":" + os.Getenv("PORT"))
 }
@@ -62,8 +70,10 @@ func main() {
 func rateLimitCall(ClientIP string) (int, error) {
 	ctx := context.Background()
 
-	rateLimitString := os.Getenv("RATE_LIMIT")
-	RATE_LIMIT, _ := strconv.Atoi(rateLimitString)
+	flags := getFeatureFlags()
+	rateLimitInterface, _ := flags.GetFeatureValue("rate_limit")
+	RATE_LIMIT := int(rateLimitInterface.(float64))
+	fmt.Println("Current Rate Limit is", RATE_LIMIT)
 
 	res, err := limiter.Allow(ctx, ClientIP, redis_rate.PerHour(RATE_LIMIT))
 	if err != nil {
@@ -71,9 +81,15 @@ func rateLimitCall(ClientIP string) (int, error) {
 	}
 
 	if res.Remaining == 0 {
-		return 0, errors.New("you have hit the rate limit for the api. try again later")
+		return 0, errors.New("you have hit the rate rimit for the api. try again later")
 	}
 
 	fmt.Println("remaining request for", ClientIP, "is", res.Remaining)
 	return res.Remaining, nil
+}
+
+func getFeatureFlags() flagsmith.Flags {
+	ctx := context.Background()
+	flags, _ := flagsmithClient.GetEnvironmentFlags(ctx)
+	return flags
 }
