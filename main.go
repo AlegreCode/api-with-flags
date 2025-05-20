@@ -54,6 +54,7 @@ func main() {
 		}
 	})
 	r.GET("/beta", func(c *gin.Context) {
+		fmt.Println("dummy test flagsmith")
 		flags := getFeatureFlags()
 		isEnabled, _ := flags.IsFeatureEnabled("beta")
 		if isEnabled {
