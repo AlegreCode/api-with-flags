@@ -57,10 +57,12 @@ func main() {
 		flags := getFeatureFlags()
 		isEnabled, _ := flags.IsFeatureEnabled("beta")
 		if isEnabled {
+			fmt.Println("beta is enabled")
 			c.JSON(
 				http.StatusOK,
 				gin.H{"message": "This is beta endpoint"})
 		} else {
+			fmt.Println("beta is disabled")
 			c.String(http.StatusNotFound, "404 page not found")
 		}
 	})
